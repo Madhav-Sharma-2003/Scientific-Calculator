@@ -1,233 +1,192 @@
 import tkinter as tk
+from tkinter import messagebox
 import math
-import re
 
-class CasioFX82MS:
+class CasioCalculator(tk.Tk):
     def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("CASIO fx-82MS")
-        self.root.geometry("350x550")
-        self.root.resizable(False, False)
-        self.root.configure(bg='#2c3e40')
-
-        self.display_var = tk.StringVar()
-        self.current_display = ""
-        self.current_eval = ""
+        super().__init__()
+        self.title("Scientific Calculator")
+        self.resizable(False, False)
         self.memory = 0
-        self.last_answer = ""
-        self.special_mode = None   # 'nCr' or 'nPr'
-        self.special_args = []     # to store n and r
+        self.expr = ""
+        self.result_var = tk.StringVar()
+        self.expr_var = tk.StringVar()
+        self.mode = "DEG"  # Default mode
 
-        self.create_display()
-        self.create_buttons()
+        self.create_widgets()
+        self.bind_keys()
 
-    def create_display(self):
-        self.display_frame = tk.Frame(self.root, bg='#34495e', bd=3, relief='ridge')
-        self.display_frame.grid(row=0, column=0, columnspan=6, padx=10, pady=10, sticky='ew')
-        brand_label = tk.Label(self.display_frame, text="CASIO", font=('Arial', 10, 'bold'),
-                               bg='#34495e', fg='white')
-        brand_label.grid(row=0, column=0, sticky='w', padx=5)
-        model_label = tk.Label(self.display_frame, text="fx-82MS", font=('Arial', 8),
-                               bg='#34495e', fg='white')
-        model_label.grid(row=0, column=1, sticky='e', padx=5)
-        svpam_label = tk.Label(self.display_frame, text="S-V.P.A.M.", font=('Arial', 10, 'bold'),
-                               bg='#34495e', fg='white')
-        svpam_label.grid(row=1, column=0, sticky='w', padx=5)
-        edition_label = tk.Label(self.display_frame, text="2nd edition", font=('Arial', 8),
-                                 bg='#34495e', fg='white')
-        edition_label.grid(row=1, column=1, sticky='e', padx=5)
-        self.display = tk.Entry(self.display_frame, textvariable=self.display_var, font=('Arial', 16),
-                                bd=2, relief='sunken', justify='right', state='readonly',
-                                readonlybackground='#ecf0f1', width=20)
-        self.display.grid(row=2, column=0, columnspan=2, padx=5, pady=5, sticky='ew')
+    def create_widgets(self):
+        frame_disp = tk.Frame(self)
+        frame_disp.grid(row=0, column=0, columnspan=6, sticky='nsew')
 
-    def create_buttons(self):
-        button_layout = [
-            [('SHIFT', 1, '#e74c3c', 'white'), ('ALPHA', 1, '#e74c3c', 'white'), ('', 0, '', ''),
-             ('MODE', 1, '#95a5a6', 'black'), ('CLR', 1, '#95a5a6', 'black'), ('ON', 1, '#95a5a6', 'black')],
-            [('x⁻¹', 1, '#bdc3c7', 'black'), ('nCr', 1, '#bdc3c7', 'black'), ('nPr', 1, '#bdc3c7', 'black'),
-             ('Pol(', 1, '#bdc3c7', 'black'), ('x³', 1, '#bdc3c7', 'black'), ('', 0, '', '')],
-            [('a/b/c', 1, '#bdc3c7', 'black'), ('√', 1, '#bdc3c7', 'black'), ('x²', 1, '#bdc3c7', 'black'),
-             ('^', 1, '#bdc3c7', 'black'), ('log', 1, '#bdc3c7', 'black'), ('ln', 1, '#bdc3c7', 'black')],
-            [('(-)', 1, '#bdc3c7', 'black'), ('°\'"', 1, '#bdc3c7', 'black'), ('hyp', 1, '#bdc3c7', 'black'),
-             ('sin', 1, '#bdc3c7', 'black'), ('cos', 1, '#bdc3c7', 'black'), ('tan', 1, '#bdc3c7', 'black')],
-            [('RCL', 1, '#bdc3c7', 'black'), ('ENG', 1, '#bdc3c7', 'black'), ('(', 1, '#bdc3c7', 'black'),
-             (')', 1, '#bdc3c7', 'black'), (',', 1, '#bdc3c7', 'black'), ('M+', 1, '#e67e22', 'white')],
-            [('7', 1, '#34495e', 'white'), ('8', 1, '#34495e', 'white'), ('9', 1, '#34495e', 'white'),
-             ('DEL', 1, '#e74c3c', 'white'), ('AC', 1, '#e74c3c', 'white'), ('', 0, '', '')],
-            [('4', 1, '#34495e', 'white'), ('5', 1, '#34495e', 'white'), ('6', 1, '#34495e', 'white'),
-             ('×', 1, '#f39c12', 'white'), ('÷', 1, '#f39c12', 'white'), ('', 0, '', '')],
-            [('1', 1, '#34495e', 'white'), ('2', 1, '#34495e', 'white'), ('3', 1, '#34495e', 'white'),
-             ('+', 1, '#f39c12', 'white'), ('-', 1, '#f39c12', 'white'), ('', 0, '', '')],
-            [('0', 1, '#34495e', 'white'), ('.', 1, '#34495e', 'white'), ('×10ˣ', 1, '#bdc3c7', 'black'),
-             ('Ans', 1, '#bdc3c7', 'black'), ('=', 1, '#27ae60', 'white'), ('', 0, '', '')]
+        tk.Label(frame_disp, textvariable=self.expr_var, anchor='e', font=('Consolas', 12), bg="white", width=30).grid(row=0, column=0, columnspan=6, sticky='ew')
+        tk.Label(frame_disp, textvariable=self.result_var, anchor='e', font=('Consolas', 20, 'bold'), bg="white", width=30).grid(row=1, column=0, columnspan=6, sticky='ew')
+
+        self.expr_var.set("")
+        self.result_var.set("0")
+
+        btn_cfg = {
+            'font': ('Consolas', 12),
+            'width': 6,
+            'height': 2,
+            'bg': '#D7E3FC',
+        }
+
+        buttons = [
+            [("MC", lambda: self.memory_clear()), ("MR", lambda: self.memory_recall()), ("M+", lambda: self.memory_add()), ("M-", lambda: self.memory_sub()), ("CE", lambda: self.clear_entry()), ("C", lambda: self.clear_all())],
+            [("sin", lambda: self.append_func('sin(')), ("cos", lambda: self.append_func('cos(')), ("tan", lambda: self.append_func('tan(')), ("π", lambda: self.append_value(str(math.pi))), ("e", lambda: self.append_value(str(math.e))), ("DEG", self.toggle_mode)],
+            [("asin", lambda: self.append_func('asin(')), ("acos", lambda: self.append_func('acos(')), ("atan", lambda: self.append_func('atan(')), ("ln", lambda: self.append_func('ln(')), ("log", lambda: self.append_func('log(')), ("√", lambda: self.append_func('sqrt('))],
+            [("x^y", lambda: self.append_op('**')), ("x²", lambda: self.append_func('sqr(')), ("e^x", lambda: self.append_func('exp(')), ("10^x", lambda: self.append_func('tenx(')), ("|x|", lambda: self.append_func('abs(')), ("mod", lambda: self.append_op('mod'))],
+            [("nPr", lambda: self.append_func('nPr(')), ("nCr", lambda: self.append_func('nCr(')), ("!", lambda: self.append_func('fact(')), ("(", lambda: self.append_value('(')), (")", lambda: self.append_value(')')), ("←", self.backspace)],
+            [("7", lambda: self.append_value('7')), ("8", lambda: self.append_value('8')), ("9", lambda: self.append_value('9')), ("/", lambda: self.append_op('/')), ("%", lambda: self.append_op('%')), ("Ans", self.use_ans)],
+            [("4", lambda: self.append_value('4')), ("5", lambda: self.append_value('5')), ("6", lambda: self.append_value('6')), ("*", lambda: self.append_op('*')), ("-", lambda: self.append_op('-')), ("+", lambda: self.append_op('+'))],
+            [("1", lambda: self.append_value('1')), ("2", lambda: self.append_value('2')), ("3", lambda: self.append_value('3')), (".", lambda: self.append_value('.')), ("0", lambda: self.append_value('0')), ("=", self.calculate)],
         ]
-        for row_idx, row in enumerate(button_layout, start=1):
-            for col_idx, (text, active, bg_color, fg_color) in enumerate(row):
-                if active:
-                    btn = tk.Button(self.root, text=text, font=('Arial', 10, 'bold'), width=6, height=2,
-                                    bg=bg_color, fg=fg_color, command=lambda t=text: self.button_click(t))
-                    btn.grid(row=row_idx, column=col_idx, padx=1, pady=1, sticky='nsew')
-                else:
-                    spacer = tk.Label(self.root, bg='#2c3e40', width=6, height=2)
-                    spacer.grid(row=row_idx, column=col_idx, padx=1, pady=1)
 
-    def button_click(self, char):
-        # Clear nCr/nPr mode on AC, DEL, or after calculation
-        if char == 'AC':
-            self.current_display = ""
-            self.current_eval = ""
-            self.display_var.set("")
-            self.special_mode = None
-            self.special_args = []
-        elif char == 'DEL':
-            self.current_display = self.current_display[:-1]
-            self.current_eval = self.current_eval[:-1]
-            self.display_var.set(self.current_display)
-            if self.special_mode and self.special_args:
-                self.special_args.pop()
-        elif char == '=':
-            self.calculate_result()
-        elif char == "nCr" or char == "nPr":
-            self.current_display += f" {char} "
-            self.display_var.set(self.current_display)
-            self.special_mode = char
-            self.special_args = []
-        elif char in '0123456789':
-            self.current_display += char
-            self.display_var.set(self.current_display)
-            if self.special_mode:
-                self.special_args.append(char)
-            else:
-                self.current_eval += char
-        elif char in '+-×÷^':
-            self.current_display += char
-            self.current_eval += char.replace("×", "*").replace("÷", "/")
-            self.display_var.set(self.current_display)
-        elif char == "√":
-            self.current_display += "√("
-            self.current_eval += "sqrt("
-            self.display_var.set(self.current_display)
-        elif char == "x²":
-            self.current_display += "²"
-            self.current_eval += "^2"
-            self.display_var.set(self.current_display)
-        elif char == "x³":
-            self.current_display += "³"
-            self.current_eval += "^3"
-            self.display_var.set(self.current_display)
-        elif char == "x⁻¹":
-            self.current_display += "^(-1)"
-            self.current_eval += "^-1"
-            self.display_var.set(self.current_display)
-        elif char in ["sin", "cos", "tan", "log", "ln"]:
-            self.current_display += f"{char}("
-            self.current_eval += f"{char}("
-            self.display_var.set(self.current_display)
-        elif char == "Ans":
-            self.current_display += self.last_answer
-            self.current_eval += self.last_answer
-            self.display_var.set(self.current_display)
-        elif char in "()":
-            self.current_display += char
-            self.current_eval += char
-            self.display_var.set(self.current_display)
-        elif char == ".":
-            self.current_display += "."
-            self.current_eval += "."
-            self.display_var.set(self.current_display)
-        elif char == "M+":
-            try:
-                self.memory += float(self.last_answer)
-            except:
-                pass
-        elif char == "RCL":
-            self.current_display += str(self.memory)
-            self.current_eval += str(self.memory)
-            self.display_var.set(self.current_display)
-        elif char == "(-)":
-            self.current_display += "-"
-            self.current_eval += "-"
-            self.display_var.set(self.current_display)
+        for row_idx, row in enumerate(buttons, start=2):
+            for col_idx, (label, cmd) in enumerate(row):
+                b = tk.Button(self, text=label, command=cmd, **btn_cfg)
+                b.grid(row=row_idx, column=col_idx, padx=1, pady=1)
+
+    def append_value(self, val):
+        # Auto-insert comma for nPr/nCr arguments if missing
+        if self.expr.endswith("nPr(") or self.expr.endswith("nCr("):
+            self.expr += val
         else:
+            for func in ["nPr(", "nCr("]:
+                pos = self.expr.rfind(func)
+                if pos != -1:
+                    sub_expr = self.expr[pos + len(func):]
+                    if "," not in sub_expr:
+                        self.expr += "," + val
+                        self.expr_var.set(self.expr)
+                        return
+            self.expr += val
+        self.expr_var.set(self.expr)
+
+    def append_op(self, op):
+        if op == 'mod':
+            self.expr += '%'
+        else:
+            self.expr += op
+        self.expr_var.set(self.expr)
+
+    def append_func(self, func):
+        self.expr += func
+        self.expr_var.set(self.expr)
+
+    def backspace(self):
+        self.expr = self.expr[:-1]
+        self.expr_var.set(self.expr)
+
+    def clear_entry(self):
+        self.expr = ""
+        self.expr_var.set("")
+
+    def clear_all(self):
+        self.expr = ""
+        self.result_var.set("0")
+        self.expr_var.set("")
+
+    def bind_keys(self):
+        self.bind('<Key>', self.key_input)
+        self.bind('<Return>', lambda e: self.calculate())
+        self.bind('<BackSpace>', lambda e: self.backspace())
+        self.bind('<Escape>', lambda e: self.clear_all())
+
+    def key_input(self, event):
+        ch = event.char
+        if ch in '0123456789.+-*/()%':
+            self.append_value(ch)
+        elif ch == '\r':
+            self.calculate()
+        elif ch.lower() == 'c':
+            self.clear_all()
+        elif ch == '\x08':
+            self.backspace()
+
+    def use_ans(self):
+        if self.result_var.get() != "Error":
+            self.expr += self.result_var.get()
+            self.expr_var.set(self.expr)
+
+    def toggle_mode(self):
+        self.mode = "RAD" if self.mode == "DEG" else "DEG"
+        for child in self.children.values():
+            if isinstance(child, tk.Button) and child['text'] in ["DEG", "RAD"]:
+                child.config(text=self.mode)
+                break
+
+    def memory_add(self):
+        try:
+            val = float(self.result_var.get())
+            self.memory += val
+        except:
             pass
 
-    def calculate_result(self):
-        # Special handling for nCr and nPr with Casio syntax
-        if self.special_mode in ["nCr", "nPr"] and len(self.special_args) >= 2:
-            try:
-                # Get n and r (allow multi-digit)
-                parts = ''.join(self.special_args)
-                # Find two numbers surrounding nCr/nPr in display
-                match = re.search(r'(\d+)\s+' + self.special_mode + r'\s+(\d+)', self.current_display)
-                if match:
-                    n = int(match.group(1))
-                    r = int(match.group(2))
-                    if self.special_mode == "nCr":
-                        result = math.comb(n, r)
-                    else:
-                        result = math.perm(n, r)
-                    self.display_var.set(str(result))
-                    self.last_answer = str(result)
-                else:
-                    self.display_var.set("Error")
-            except Exception:
-                self.display_var.set("Error")
-            self.current_display = ""
-            self.current_eval = ""
-            self.special_mode = None
-            self.special_args = []
-            return
-
-        # Normal calculation
-        expression = self.current_eval
+    def memory_sub(self):
         try:
-            def degrees_sin(x): return round(math.sin(math.radians(x)), 10)
-            def degrees_cos(x): return round(math.cos(math.radians(x)), 10)
-            def degrees_tan(x): return round(math.tan(math.radians(x)), 10)
-            def py_log(x): return math.log10(float(x))
-            def py_ln(x): return math.log(float(x))
-            def py_sqrt(x): return math.sqrt(float(x))
-            def py_comb(n, r): return math.comb(int(n), int(r))
-            def py_perm(n, r): return math.perm(int(n), int(r))
+            val = float(self.result_var.get())
+            self.memory -= val
+        except:
+            pass
 
-            # Handle ^ powers
-            expression = re.sub(r'(\d+)\^2', r'pow(\1,2)', expression)
-            expression = re.sub(r'(\d+)\^3', r'pow(\1,3)', expression)
-            expression = re.sub(r'(\d+)\^-1', r'1/(\1)', expression)
+    def memory_recall(self):
+        self.expr += str(self.memory)
+        self.expr_var.set(self.expr)
 
-            # Replace function names
-            expression = expression.replace("sin(", "degrees_sin(")
-            expression = expression.replace("cos(", "degrees_cos(")
-            expression = expression.replace("tan(", "degrees_tan(")
-            expression = expression.replace("log(", "py_log(")
-            expression = expression.replace("ln(", "py_ln(")
-            expression = expression.replace("sqrt(", "py_sqrt(")
-            expression = expression.replace("comb(", "py_comb(")
-            expression = expression.replace("perm(", "py_perm(")
+    def memory_clear(self):
+        self.memory = 0
 
-            result = eval(expression, {
-                'pow': pow, 'degrees_sin': degrees_sin, 'degrees_cos': degrees_cos,
-                'degrees_tan': degrees_tan, 'py_log': py_log,
-                'py_ln': py_ln, 'py_sqrt': py_sqrt, 'py_comb': py_comb, 'py_perm': py_perm
-            })
+    def calculate(self):
+        expr = self.expr
+        expr = expr.replace('ln(', 'math.log(')
+        expr = expr.replace('log(', 'math.log10(')
+        expr = expr.replace('sqrt(', 'math.sqrt(')
+        expr = expr.replace('exp(', 'math.exp(')
+        expr = expr.replace('tenx(', 'math.pow(10,')
+        expr = expr.replace('sqr(', 'math.pow(')
+        expr = expr.replace('fact', 'math.factorial')
+        expr = expr.replace('abs', 'abs')
+        expr = expr.replace('mod', '%')
 
-            self.last_answer = str(result)
-            self.display_var.set(self.last_answer)
-            self.current_display = ""
-            self.current_eval = ""
-            self.special_mode = None
-            self.special_args = []
-        except Exception:
-            self.display_var.set("Error")
-            self.current_display = ""
-            self.current_eval = ""
-            self.special_mode = None
-            self.special_args = []
+        try:
+            local_env = {
+                'math': math,
+                'abs': abs,
+                'nPr': self._nPr,
+                'nCr': self._nCr,
+                'sin': lambda x: math.sin(math.radians(x)) if self.mode == 'DEG' else math.sin(x),
+                'cos': lambda x: math.cos(math.radians(x)) if self.mode == 'DEG' else math.cos(x),
+                'tan': lambda x: math.tan(math.radians(x)) if self.mode == 'DEG' else math.tan(x),
+                'asin': lambda x: math.degrees(math.asin(x)) if self.mode == 'DEG' else math.asin(x),
+                'acos': lambda x: math.degrees(math.acos(x)) if self.mode == 'DEG' else math.acos(x),
+                'atan': lambda x: math.degrees(math.atan(x)) if self.mode == 'DEG' else math.atan(x),
+                '__builtins__': {}
+            }
 
-    def run(self):
-        self.root.mainloop()
+            result = eval(expr, local_env)
+            self.result_var.set(str(result))
+        except Exception as e:
+            self.result_var.set("Error")
+            messagebox.showerror("Calculation Error", f"Invalid input: {e}")
+        finally:
+            self.expr = ""
+            self.expr_var.set("")
+
+    def _nPr(self, n, r):
+        n, r = int(n), int(r)
+        if n < 0 or r < 0 or n < r:
+            raise ValueError("n and r must be ≥ 0 and n ≥ r")
+        return math.factorial(n) // math.factorial(n - r)
+
+    def _nCr(self, n, r):
+        n, r = int(n), int(r)
+        if n < 0 or r < 0 or n < r:
+            raise ValueError("n and r must be ≥ 0 and n ≥ r")
+        return math.factorial(n) // (math.factorial(r) * math.factorial(n - r))
 
 if __name__ == "__main__":
-    calculator = CasioFX82MS()
-    calculator.run()
+    calc = CasioCalculator()
+    calc.mainloop()
